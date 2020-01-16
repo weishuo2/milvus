@@ -106,7 +106,7 @@ message(STATUS "Milvus version: "
         "${MILVUS_VERSION_MAJOR}.${MILVUS_VERSION_MINOR}.${MILVUS_VERSION_PATCH} "
         "(full: '${MILVUS_VERSION}')")
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
@@ -115,6 +115,9 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "(ppc)")
     message(STATUS "Building milvus_engine on ppc architecture")
     set(MILVUS_BUILD_ARCH ppc64le)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "(aarch)")
+    message(STATUS "Building milvus_engine on aarch architecture")
+    set(MILVUS_BUILD_ARCH arch64)
 else ()
     message(WARNING "Unknown processor type")
     message(WARNING "CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}")
@@ -160,7 +163,6 @@ if (MILVUS_USE_CCACHE)
 endif ()
 
 if (CUSTOMIZATION)
-    set(MILVUS_GPU_VERSION ON)
     add_compile_definitions(CUSTOMIZATION)
 endif ()
 
@@ -176,6 +178,10 @@ endif ()
 
 if (MILVUS_WITH_PROMETHEUS)
     add_compile_definitions("MILVUS_WITH_PROMETHEUS")
+endif ()
+
+if (MILVUS_WITH_FIU)
+    add_compile_definitions("FIU_ENABLE")
 endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")

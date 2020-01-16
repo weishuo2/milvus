@@ -15,17 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include "db/utils.h"
+
+#include <opentracing/mocktracer/tracer.h>
+
 #include <boost/filesystem.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "cache/CpuCacheMgr.h"
 #include "cache/GpuCacheMgr.h"
 #include "db/DBFactory.h"
 #include "db/Options.h"
-#include "db/utils.h"
 #ifdef MILVUS_GPU_VERSION
 #include "knowhere/index/vector_index/helpers/FaissGpuResourceMgr.h"
 #endif
@@ -45,14 +49,15 @@ static const char* CONFIG_STR =
     "  time_zone: UTC+8\n"
     "\n"
     "db_config:\n"
-    "  primary_path: /tmp/milvus         # path used to store data and meta\n"
-    "  secondary_path:                   # path used to store data only, split by semicolon\n"
-    "\n"
     "  backend_url: sqlite://:@:/        \n"
     "                                    \n"
     "                                    # Replace 'dialect' with 'mysql' or 'sqlite'\n"
     "\n"
     "  insert_buffer_size: 4             # GB, maximum insert buffer size allowed\n"
+    "\n"
+    "storage_config:\n"
+    "  primary_path: /tmp/milvus         # path used to store data and meta\n"
+    "  secondary_path:                   # path used to store data only, split by semicolon\n"
     "\n"
     "metric_config:\n"
     "  enable_monitor: false             # enable monitoring or not\n"
@@ -123,6 +128,13 @@ BaseTest::InitLog() {
 void
 BaseTest::SetUp() {
     InitLog();
+    dummy_context_ = std::make_shared<milvus::server::Context>("dummy_request_id");
+    opentracing::mocktracer::MockTracerOptions tracer_options;
+    auto mock_tracer =
+        std::shared_ptr<opentracing::Tracer>{new opentracing::mocktracer::MockTracer{std::move(tracer_options)}};
+    auto mock_span = mock_tracer->StartSpan("mock_span");
+    auto trace_context = std::make_shared<milvus::tracing::TraceContext>(mock_span);
+    dummy_context_->SetTraceContext(trace_context);
 #ifdef MILVUS_GPU_VERSION
     knowhere::FaissGpuResourceMgr::GetInstance().InitDevice(0, 1024 * 1024 * 200, 1024 * 1024 * 300, 2);
 #endif
@@ -152,14 +164,14 @@ DBTest::SetUp() {
 
     auto res_mgr = milvus::scheduler::ResMgrInst::GetInstance();
     res_mgr->Clear();
-    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("disk", "DISK", 0, true, false));
-    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("cpu", "CPU", 0, true, true));
+    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("disk", "DISK", 0, false));
+    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("cpu", "CPU", 0));
 
     auto default_conn = milvus::scheduler::Connection("IO", 500.0);
     auto PCIE = milvus::scheduler::Connection("IO", 11000.0);
     res_mgr->Connect("disk", "cpu", default_conn);
 #ifdef MILVUS_GPU_VERSION
-    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("0", "GPU", 0, true, true));
+    res_mgr->Add(milvus::scheduler::ResourceFactory::Create("0", "GPU", 0));
     res_mgr->Connect("cpu", "0", PCIE);
 #endif
     res_mgr->Start();

@@ -6,7 +6,6 @@ include_directories(${INDEX_SOURCE_DIR})
 set(depend_libs
         gtest gmock gtest_main gmock_main
         faiss
-        arrow "${ARROW_LIB_DIR}/libjemalloc_pic.a"
         )
 if (FAISS_WITH_MKL)
     set(depend_libs ${depend_libs}
@@ -18,8 +17,9 @@ if (FAISS_WITH_MKL)
             )
 else ()
     set(depend_libs ${depend_libs}
-            lapack
-            openblas)
+            ${BLAS_LIBRARIES}
+            ${LAPACK_LIBRARIES}
+            )
 endif ()
 
 set(basic_libs
@@ -27,11 +27,10 @@ set(basic_libs
         )
 
 set(util_srcs
-        ${MILVUS_THIRDPARTY_SRC}/easyloggingpp/easylogging++.cc
+        ${INDEX_SOURCE_DIR}/knowhere/knowhere/common/easyloggingpp/easylogging++.cc
         ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/helpers/FaissIO.cpp
         ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/helpers/IndexParameter.cpp
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/adapter/Structure.cpp
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/adapter/ArrowAdapter.cpp
+        ${INDEX_SOURCE_DIR}/knowhere/knowhere/adapter/VectorAdapter.cpp
         ${INDEX_SOURCE_DIR}/knowhere/knowhere/common/Exception.cpp
         ${INDEX_SOURCE_DIR}/knowhere/knowhere/common/Timer.cpp
         ${INDEX_SOURCE_DIR}/unittest/utils.cpp
@@ -83,18 +82,18 @@ endif ()
 target_link_libraries(test_idmap ${depend_libs} ${unittest_libs} ${basic_libs})
 
 #<SPTAG-TEST>
-set(sptag_srcs
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/adapter/SptagAdapter.cpp
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/preprocessor/Normalize.cpp
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/helpers/SPTAGParameterMgr.cpp
-        ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/IndexSPTAG.cpp
-        )
-if (NOT TARGET test_sptag)
-    add_executable(test_sptag test_sptag.cpp ${sptag_srcs} ${util_srcs})
-endif ()
-target_link_libraries(test_sptag
-        SPTAGLibStatic
-        ${depend_libs} ${unittest_libs} ${basic_libs})
+#set(sptag_srcs
+#        ${INDEX_SOURCE_DIR}/knowhere/knowhere/adapter/SptagAdapter.cpp
+#        ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/preprocessor/Normalize.cpp
+#        ${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/helpers/SPTAGParameterMgr.cpp
+#	${INDEX_SOURCE_DIR}/knowhere/knowhere/index/vector_index/IndexSPTAG.cpp
+#        )
+#if (NOT TARGET test_sptag)
+#    add_executable(test_sptag test_sptag.cpp ${sptag_srcs} ${util_srcs})
+#endif ()
+#target_link_libraries(test_sptag
+#        SPTAGLibStatic
+#        ${depend_libs} ${unittest_libs} ${basic_libs})
 
 if (KNOWHERE_GPU_VERSION)
     add_executable(test_gpuresource test_gpuresource.cpp ${util_srcs} ${ivf_srcs})
@@ -106,7 +105,7 @@ endif ()
 
 install(TARGETS test_ivf DESTINATION unittest)
 install(TARGETS test_idmap DESTINATION unittest)
-install(TARGETS test_sptag DESTINATION unittest)
+#install(TARGETS test_sptag DESTINATION unittest)
 if (KNOWHERE_GPU_VERSION)
     install(TARGETS test_gpuresource DESTINATION unittest)
     install(TARGETS test_customized_index DESTINATION unittest)
